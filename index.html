@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Secure Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #fafafa; color: #333; }
+        .navbar { display: flex; justify-content: space-between; align-items: center; background: #333; color: white; padding: 10px 20px; border-radius: 4px; }
+        .logout-btn { background: #dc3545; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; }
+        .logout-btn:hover { background: #c82333; }
+        .container { margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
+        .badge-finance { background: #e3f2fd; color: #0d47a1; }
+        .badge-hr { background: #f3e5f5; color: #4a148c; }
+        .badge-exec { background: #e8f5e9; color: #1b5e20; }
+        .url-box { margin-top: 15px; padding: 10px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px; color: #856404; font-family: monospace; font-size: 0.9em;}
+    </style>
+    <script>
+        // --- SECURITY CHECK ---
+        const session = JSON.parse(localStorage.getItem('userSession'));
+        
+        // If no browser session exists, instantly kick back to login page
+        if (!session || !session.isLoggedIn) {
+            window.location.href = 'login.html';
+        }
+    </script>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Secure Corporate Portal</h2>
+    <div>
+        <span id="welcomeMessage"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="url-box">
+        <strong>Detected URL Auth Parameters:</strong> <span id="urlParamsDisplay">None</span>
+    </div>
+
+    <h3>Your Authorized Data Rows</h3>
+    <p>Below is data filtered dynamically based on your department clearance level (Row-Level Security simulation).</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Record Name</th>
+                <th>Department restriction</th>
+                <th>Hidden Sensitive Data</th>
+            </tr>
+        </thead>
+        <tbody id="dataTableBody">
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Raw database simulation (Hidden from standard view, filtered on load)
+    const hiddenDatabaseRows = [
+        { id: 101, name: "Q4 Budget Planning", dept: "Finance", sensitiveData: "$250,000 Allocation Details" },
+        { id: 102, name: "Payroll Matrix 2026", dept: "Finance", sensitiveData: "Executive Salary Tiers" },
+        { id: 103, name: "Employee Incident Report", dept: "HR", sensitiveData: "Case #4912 File Notes" },
+        { id: 104, name: "Q3 Hiring Roadmap", dept: "HR", sensitiveData: "Pending Offer Letters & Salaries" },
+    ];
+
+    // Grab information from the string appended to the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlUser = urlParams.get('user');
+    const urlPass = urlParams.get('pass');
+
+    if (urlUser && urlPass) {
+        document.getElementById('urlParamsDisplay').innerText = `?user=${urlUser}&pass=${urlPass}`;
+    }
+
+    // Render page elements based on confirmed session
+    if (session) {
+        document.getElementById('welcomeMessage').innerText = `Logged in as: ${session.username} (${session.department})`;
+
+        const tableBody = document.getElementById('dataTableBody');
+        
+        // --- ROW LEVEL SECURITY FILTER ---
+        const authorizedRows = hiddenDatabaseRows.filter(row => {
+            return session.department === 'Executive' || row.dept === session.department;
+        });
+
+        if (authorizedRows.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No data records found for your clearance level.</td></tr>`;
+        } else {
+            authorizedRows.forEach(row => {
+                let badgeClass = 'badge-exec';
+                if(row.dept === 'Finance') badgeClass = 'badge-finance';
+                if(row.dept === 'HR') badgeClass = 'badge-hr';
+
+                const htmlRow = `
+                    <tr>
+                        <td>${row.id}</td>
+                        <td>${row.name}</td>
+                        <td><span class="badge ${badgeClass}">${row.dept}</span></td>
+                        <td><strong>[CONFIDENTIAL]</strong> ${row.sensitiveData}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += htmlRow;
+            });
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('userSession');
+        window.location.href = 'login.html';
+    }
+</script>
+
+</body>
+</html>
